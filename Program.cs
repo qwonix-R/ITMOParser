@@ -40,12 +40,13 @@ namespace ITMOParser
                     await UpdateDb(await ParsePage(page.Key, page.Value));
 
                 }
+                Console.WriteLine($"[{DateTime.Now}] RunCycle ended successfully.");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[{DateTime.Now}]Cycle runtime error: {ex.Message}" );
             }
-            Console.WriteLine($"[{DateTime.Now}] RunCycle ended successfully.");
+            
 
         }
 
@@ -53,6 +54,7 @@ namespace ITMOParser
         {
             List<Application> appsList = new List<Application>();
             IDocument document = await ctx.OpenAsync(url);
+            Console.WriteLine($"[{DateTime.Now}] Started parsing on {profile} profile.");
             var headings = document.QuerySelectorAll("h5.RatingPage_title__zlsGy");
             foreach (var heading in headings)
             {

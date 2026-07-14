@@ -23,6 +23,11 @@ RUN dotnet publish "./ITMOParser.csproj" -c $BUILD_CONFIGURATION -o /app/publish
 
 # Этот этап используется в рабочей среде или при запуске из VS в обычном режиме (по умолчанию, когда конфигурация отладки не используется)
 FROM base AS final
+
+USER root
+RUN apk add --no-cache krb5-libs
+USER $APP_UID
+
 WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "ITMOParser.dll"]
