@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ITMOParser": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}
