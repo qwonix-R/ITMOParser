@@ -11,8 +11,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ITMOParser.Migrations
 {
     [DbContext(typeof(ApplicationContext))]
-    [Migration("20260714205520_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260715142935_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -26,11 +26,11 @@ namespace ITMOParser.Migrations
 
             modelBuilder.Entity("ITMOParser.Application", b =>
                 {
-                    b.Property<int>("id")
+                    b.Property<long>("id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("bigint");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
 
                     b.Property<int>("applicationId")
                         .HasColumnType("integer");

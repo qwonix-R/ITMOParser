@@ -59,7 +59,7 @@ namespace ITMOParser
 
                     if (prevLength - allProfiles.Count < updateLowerThreshold && allProfiles != null)
                     {
-                        db.Database.ExecuteSqlRaw($"TRUNCATE TABLE itmo");
+                        db.Database.ExecuteSqlRaw($"TRUNCATE TABLE itmo RESTART IDENTITY");
                         await UpdateDb(allProfiles);
                     }
                     else

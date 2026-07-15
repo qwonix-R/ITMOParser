@@ -18,7 +18,7 @@ namespace ITMOParser
     }
     public class Application
     {
-        public int id { get; set; }
+        public long id { get; set; }
         public int applicationId   { get; set; }
         public int points { get; set; }
         public int priority { get; set; }

@@ -20,24 +20,20 @@ namespace ITMOParser
         private static async Task Main(string[] args)
         { 
 
-
             if (Environment.GetEnvironmentVariable("DB_CONNECTION_STRING") != null)
             {
                 dbConnectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
             }
             else
             {
-                var envPath = Path.Combine(Environment.CurrentDirectory, ".env");
                 DotEnv.Load();
                 var envVars = DotEnv.Read();
-                Console.WriteLine(envVars["DB_CONNECTION_STRING"]);
                 dbConnectionString = envVars["DB_CONNECTION_STRING"];
             }
 
-
             using (ApplicationContext db = new ApplicationContext())
             {
-                db.Database.EnsureCreated();
+                db.Database.Migrate();
             }
 
             using var cts = new CancellationTokenSource();

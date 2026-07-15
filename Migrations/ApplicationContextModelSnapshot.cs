@@ -23,11 +23,11 @@ namespace ITMOParser.Migrations
 
             modelBuilder.Entity("ITMOParser.Application", b =>
                 {
-                    b.Property<int>("id")
+                    b.Property<long>("id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("bigint");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
 
                     b.Property<int>("applicationId")
                         .HasColumnType("integer");
