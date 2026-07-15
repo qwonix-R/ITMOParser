@@ -12,7 +12,7 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["ITMOParser.csproj", "."]
 RUN dotnet restore "./ITMOParser.csproj"
-
+COPY . .
 WORKDIR "/src/."
 RUN dotnet build "./ITMOParser.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
