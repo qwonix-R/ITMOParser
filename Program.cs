@@ -54,7 +54,9 @@ namespace ITMOParser
         {
             List<Application> appsList = new List<Application>();
             IDocument document = await ctx.OpenAsync(url);
-            Console.WriteLine($"[{DateTime.Now}] Started parsing on {profile} profile.");
+            
+            Console.WriteLine($"[{DateTime.Now}] Started parsing on profile {profile}.");
+            
             var headings = document.QuerySelectorAll("h5.RatingPage_title__zlsGy");
             foreach (var heading in headings)
             {
@@ -176,6 +178,7 @@ namespace ITMOParser
                 }
                 
             }
+            Console.WriteLine($"[{DateTime.Now}] List.Count for {profile}: {appsList.Count}");
             return appsList;
         }
         private static async Task UpdateDb(List<Application> appsList)
