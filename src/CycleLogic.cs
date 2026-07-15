@@ -1,10 +1,6 @@
 ﻿using AngleSharp;
 using AngleSharp.Dom;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace ITMOParser
 {
@@ -14,17 +10,10 @@ namespace ITMOParser
         internal static readonly IBrowsingContext ctx = BrowsingContext.New(config);
         
         
-        public static Dictionary<string, string> pageDict = new Dictionary<string, string>
-        {
-            ["090301"] = "https://abit.itmo.ru/rating/bachelor/budget/2339",
-            ["090302"] = "https://abit.itmo.ru/rating/bachelor/budget/2340",
-            ["090303"] = "https://abit.itmo.ru/rating/bachelor/budget/2341",
-            ["090304"] = "https://abit.itmo.ru/rating/bachelor/budget/2342",
-            ["110302"] = "https://abit.itmo.ru/rating/bachelor/budget/2344"
-        };
+        public static Dictionary<string, string> PageDict = new Dictionary<string, string> { };
 
         // if actual parsing results have less elements by this number than in bd, it doesn't update
-        internal const int updateLowerThreshold = 250;
+        internal static int UpdateLowerThreshold = 250;
 
         
         internal static async Task RunCycle()
@@ -34,7 +23,7 @@ namespace ITMOParser
             try
             {
                 int prevLength = 0;
-                foreach (var page in pageDict)
+                foreach (var page in PageDict)
                 {
                     int tries = 1;
                     bool success = false;
@@ -55,16 +44,30 @@ namespace ITMOParser
                 }
                 using (ApplicationContext db = new ApplicationContext())
                 {
+                    int tries = 1;
+                    bool success = false;
                     prevLength = await db.itmo.CountAsync();
-
-                    if (prevLength - allProfiles.Count < updateLowerThreshold && allProfiles != null)
+                    while (tries < 4 && !success)
                     {
-                        db.Database.ExecuteSqlRaw($"TRUNCATE TABLE itmo RESTART IDENTITY");
-                        await UpdateDb(allProfiles);
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[{DateTime.Now}] Last parsing result had at least {updateLowerThreshold} less than in bd ({prevLength}).");
+                        try
+                        {
+                            if (prevLength - allProfiles.Count < UpdateLowerThreshold && allProfiles != null)
+                            {
+                                db.Database.ExecuteSqlRaw($"TRUNCATE TABLE itmo RESTART IDENTITY");
+                                await UpdateDb(allProfiles);
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[{DateTime.Now}] Last parsing result had at least {UpdateLowerThreshold} less than in bd ({prevLength}).");
+                            }
+                            success = true;
+                        }
+                        catch (Exception ex) 
+                        {
+                            Console.WriteLine($"[{DateTime.Now}] (TRY {tries}) Did not save parsed data in db: {ex.Message}");
+                            tries++;
+                            Thread.Sleep(2000);
+                        }
                     }
                 }
 
@@ -219,9 +222,13 @@ namespace ITMOParser
         {
             using (ApplicationContext db = new ApplicationContext())
             {
+                try
+                {
+                    db.itmo.AddRange(appsList);
+                    await db.SaveChangesAsync();
+                }
+                catch { throw; }
                 
-                db.itmo.AddRange(appsList);
-                await db.SaveChangesAsync();
             }
         }
     }

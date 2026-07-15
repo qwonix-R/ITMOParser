@@ -1,49 +1,45 @@
-﻿using AngleSharp;
-using AngleSharp.Dom;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using System;
-using System.Net.NetworkInformation;
-using System.Threading;
-using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
+﻿
 using dotenv.net;
-using System.Data.Common;
-using System.Runtime.ConstrainedExecution;
-
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 namespace ITMOParser
 {
     internal class Program
     {
-        private static int timerPeriodInMinutes = 30;
-        internal static string? dbConnectionString;
+        // TimerPeriod in minutes
+        private static int TimerPeriod;
+        internal static string? DBConnectionString;
         private static async Task Main(string[] args)
-        { 
+        {
+            // Getting settings from appsettings.json
+            if (!LoadJsonSettings()) { return; }
+            
 
+            // DB connection fetch
             if (Environment.GetEnvironmentVariable("DB_CONNECTION_STRING") != null)
             {
-                dbConnectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+                DBConnectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
             }
             else
             {
                 DotEnv.Load();
                 var envVars = DotEnv.Read();
-                dbConnectionString = envVars["DB_CONNECTION_STRING"];
+                DBConnectionString = envVars["DB_CONNECTION_STRING"];
             }
 
+            // Migrations
             using (ApplicationContext db = new ApplicationContext())
             {
                 db.Database.Migrate();
             }
 
+            // CancellationToken init
             using var cts = new CancellationTokenSource();
-
-
             AppDomain.CurrentDomain.ProcessExit += (s, e) => cts.Cancel();
             Console.CancelKeyPress += (s, e) => { e.Cancel = true; cts.Cancel(); };
             
-
-            using var timer = new PeriodicTimer(TimeSpan.FromMinutes(timerPeriodInMinutes));
+            // Time between cycles
+            using var timer = new PeriodicTimer(TimeSpan.FromMinutes(TimerPeriod));
 
             try
             {
@@ -70,5 +66,30 @@ namespace ITMOParser
 
 
         }
+        private static bool LoadJsonSettings()
+        {
+            try
+            {
+                string settingsJson = File.ReadAllText("appsettings.json");
+                using var settings = JsonDocument.Parse(settingsJson);
+
+                CycleLogic.PageDict = JsonSerializer.Deserialize<Dictionary<string, string>>
+                    (
+                    settings.RootElement.GetProperty("PageDict").GetRawText()
+                    );
+                CycleLogic.UpdateLowerThreshold = settings.RootElement.GetProperty("UpdateLowerThreshold").GetInt32();
+                TimerPeriod = settings.RootElement.GetProperty("TimerPeriod").GetInt32();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[{DateTime.Now}] Failed to fetch settings from appsettings.json: {ex.Message}");
+                Console.WriteLine($"[{DateTime.Now}] Stopping..");
+                return false;
+            }
+            
+        }
+        
     }
+
 }

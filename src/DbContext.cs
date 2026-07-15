@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+
 namespace ITMOParser
 {
     public class ApplicationContext : DbContext
@@ -11,7 +9,7 @@ namespace ITMOParser
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseNpgsql(Program.dbConnectionString);
+            optionsBuilder.UseNpgsql(Program.DBConnectionString);
         }
         
 
