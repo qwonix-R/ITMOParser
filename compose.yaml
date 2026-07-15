@@ -2,7 +2,7 @@ services:
   postgres:
       image: postgres:17-alpine
       restart: always
-      
+
       environment:
         POSTGRES_DB: concursdb
         POSTGRES_USER: postgres
@@ -18,6 +18,7 @@ services:
   itmoparser:
     image: itmoparser
     restart: always
+    build: .
     depends_on:
       postgres:
        condition: service_healthy
