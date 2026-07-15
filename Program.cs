@@ -9,14 +9,16 @@ using System.Threading.Tasks;
 using static System.Net.Mime.MediaTypeNames;
 using dotenv.net;
 using System.Data.Common;
+using System.Runtime.ConstrainedExecution;
 
 namespace ITMOParser
 {
     public class Program
     {
         public static string? dbConnectionString;
-        private static IConfiguration config = Configuration.Default.WithDefaultLoader();
-        private static IBrowsingContext ctx = BrowsingContext.New(config);
+        private const int updateLowerThreshold = 250; // if actual parsing results have less elements by this number than in bd, it doesn't update
+        private static readonly IConfiguration config = Configuration.Default.WithDefaultLoader();
+        private static readonly IBrowsingContext ctx = BrowsingContext.New(config);
         private static Dictionary<string, string> pageDict = new Dictionary<string, string>
         {
             ["090301"] = "https://abit.itmo.ru/rating/bachelor/budget/2339",
@@ -28,18 +30,29 @@ namespace ITMOParser
         private static async Task RunCycle()
         {
             Console.WriteLine($"[{DateTime.Now}] RunCycle started.");
+            List<Application> allProfiles = new List<Application>();
             try
             {
-                using (ApplicationContext db = new ApplicationContext())
-                {
-                    db.Database.ExecuteSqlRaw($"TRUNCATE TABLE ITMO");
-                }
+                int prevLength = 0;
                 foreach (var page in pageDict)
                 {
-
-                    await UpdateDb(await ParsePage(page.Key, page.Value));
-
+                    allProfiles.AddRange(await ParsePage(page.Key, page.Value));
                 }
+                using (ApplicationContext db = new ApplicationContext())
+                {
+                    prevLength = await db.itmo.CountAsync();
+
+                    if (prevLength - allProfiles.Count < updateLowerThreshold)
+                    {
+                        db.Database.ExecuteSqlRaw($"TRUNCATE TABLE itmo");
+                        await UpdateDb(allProfiles);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[{DateTime.Now}] Last parsing result had at least {updateLowerThreshold} less than in bd ({prevLength}).");
+                    }
+                }
+                    
                 Console.WriteLine($"[{DateTime.Now}] RunCycle ended successfully.");
             }
             catch (Exception ex)
