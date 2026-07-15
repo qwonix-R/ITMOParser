@@ -77,8 +77,11 @@ namespace ITMOParser
                     (
                     settings.RootElement.GetProperty("PageDict").GetRawText()
                     );
+
                 CycleLogic.UpdateLowerThreshold = settings.RootElement.GetProperty("UpdateLowerThreshold").GetInt32();
+
                 TimerPeriod = settings.RootElement.GetProperty("TimerPeriod").GetInt32();
+
                 return true;
             }
             catch (Exception ex)
