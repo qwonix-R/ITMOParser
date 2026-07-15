@@ -4,9 +4,9 @@ services:
       restart: always
 
       environment:
-        POSTGRES_DB: concursdb
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
+        POSTGRES_DB: ${POSTGRES_DB}
+        POSTGRES_USER: ${POSTGRES_USER}
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       healthcheck:
         test: ["CMD-SHELL", "pg_isready -U postgres -d concursdb"]
         interval: 5s
