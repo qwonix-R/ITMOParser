@@ -11,16 +11,20 @@ namespace ITMOParser
         {
             optionsBuilder.UseNpgsql(Program.DBConnectionString);
         }
-        
-
     }
+
     public class Application
     {
-        public long id { get; set; }
-        public int applicationId   { get; set; }
-        public int points { get; set; }
-        public int priority { get; set; }
-        public bool confirmation { get; set; }
-        public string profile  { get; set; }
+        public long Id { get; set; }
+        public int AbiturientId { get; set; }
+        public int PointsFinal { get; set; }
+        public int PointsBase { get; set; }
+        public List<int> Exams { get; set; }
+        public int IndividualAchievements { get; set; }
+        public int Priority { get; set; }
+        public bool Advantage { get; set; }
+        public bool Confirmation { get; set; }
+        public string Profile  { get; set; }
+        public bool? Passes { get; set; } 
     }
 }

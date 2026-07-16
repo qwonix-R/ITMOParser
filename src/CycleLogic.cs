@@ -6,17 +6,22 @@ namespace ITMOParser
 {
     internal class CycleLogic
     {
-        internal static readonly IConfiguration config = Configuration.Default.WithDefaultLoader();
-        internal static readonly IBrowsingContext ctx = BrowsingContext.New(config);
-        
-        
-        public static Dictionary<string, string> PageDict = new Dictionary<string, string> { };
+        internal readonly IConfiguration config;
+        internal readonly IBrowsingContext ctx;
+        internal CycleLogic()
+        {
+            config = Configuration.Default.WithDefaultLoader();
+            ctx = BrowsingContext.New(config);
+        }
+
+
+        public Dictionary<string, string> PageDict = new Dictionary<string, string> { };
 
         // if actual parsing results have less elements by this number than in bd, it doesn't update
-        internal static int UpdateLowerThreshold = 250;
+        internal int UpdateLowerThreshold = 250;
 
-        
-        internal static async Task RunCycle()
+
+        internal async Task RunCycle()
         {
             Console.WriteLine($"[{DateTime.Now}] RunCycle started.");
             List<Application> allProfiles = new List<Application>();
@@ -28,11 +33,11 @@ namespace ITMOParser
                     int tries = 1;
                     bool success = false;
                     while (tries < 4 && !success)
-                    { 
+                    {
                         try
                         {
                             List<Application> profileApps = await ParsePage(page.Key, page.Value);
-                            if (profileApps.Count > 0) 
+                            if (profileApps.Count > 0)
                             {
                                 allProfiles.AddRange(profileApps);
                                 success = true;
@@ -43,7 +48,7 @@ namespace ITMOParser
                                 tries++;
                             }
                         }
-                        catch (Exception ex) 
+                        catch (Exception ex)
                         {
                             Console.WriteLine($"[{DateTime.Now}] (TRY {tries}) Did not fetch parsed data for profile {page.Key}: {ex.Message}");
                             tries++;
@@ -51,6 +56,7 @@ namespace ITMOParser
                         }
                     }
                 }
+
                 using (ApplicationContext db = new ApplicationContext())
                 {
                     int tries = 1;
@@ -71,7 +77,7 @@ namespace ITMOParser
                             }
                             success = true;
                         }
-                        catch (Exception ex) 
+                        catch (Exception ex)
                         {
                             Console.WriteLine($"[{DateTime.Now}] (TRY {tries}) Did not save parsed data in db: {ex.Message}");
                             tries++;
@@ -90,68 +96,77 @@ namespace ITMOParser
 
         }
 
-        private static async Task<List<Application>> ParsePage(string profile, string url)
+        private async Task<List<Application>> ParsePage(string profile, string url)
         {
             try
             {
                 List<Application> appsList = new List<Application>();
                 IDocument document = await ctx.OpenAsync(url);
-                
+
 
                 Console.WriteLine($"[{DateTime.Now}] Started parsing on profile {profile}.");
-                
+
                 var headings = document.QuerySelectorAll("h5.RatingPage_title__zlsGy");
 
-                
+
                 foreach (var heading in headings)
                 {
                     string group = heading.TextContent.Trim();
-
+                    bool isBVI;
                     if (group == "Без вступительных испытаний")
                     {
+                        isBVI = true;
                         try
                         {
                             var tablediv = heading.NextElementSibling;
 
                             var allAbit = tablediv.QuerySelectorAll(".RatingPage_table__item__qMY0F");
-                            foreach (var abit in allAbit)
+                            foreach (var abitCard in allAbit)
                             {
                                 try
                                 {
-                                    int applicationId;
-                                    int points;
+                                    IHtmlCollection<IElement> RowsDivs = abitCard.QuerySelectorAll(".RatingPage_table__infoLeft__Y_9cA");
+                                    List<int> firstRow;
+                                    (int individualAchievements, int pointsBase, int pointsFinal, bool advantage) secondRow;
+                                    int abiturientId;
+                                    int pointsFinal;
+                                    int pointsBase;
+                                    List<int> exams;
+                                    int individualAchievements;
                                     int priority;
                                     bool confirmation = false;
+                                    bool advantage;
+
+                                    string? applicationIdWithNumber = abitCard.QuerySelector(".RatingPage_table__position__uYWvi")?.TextContent;
+                                    abiturientId = int.Parse(applicationIdWithNumber.Split()[^1][1..]);
+
+                                    firstRow = await ParseFirstRow(isBVI, RowsDivs);
+                                    priority = firstRow[0];
+                                    exams = [100, 100, 100];
 
 
-                                    string? applicationIdWithNumber = abit.QuerySelector(".RatingPage_table__position__uYWvi")?.TextContent;
-                                    applicationId = int.Parse(applicationIdWithNumber.Split()[^1][1..]);
+                                    secondRow = await ParseSecondRow(isBVI, RowsDivs);
+                                    individualAchievements = secondRow.individualAchievements;
+                                    pointsBase = 300;
+                                    pointsFinal = 300 + individualAchievements;
+                                    advantage = true;
+                                    confirmation = await ParseConfirmation(abitCard);
 
-
-                                    var priorityAndTypeDiv = abit.QuerySelector(".RatingPage_table__infoLeft__Y_9cA");
-                                    string priorityStr = priorityAndTypeDiv.QuerySelector("p").TextContent;
-                                    priority = int.Parse(priorityStr.Substring(priorityStr.Length - 1));
-
-
-                                    points = 310; // Эквивалент БВИ 
-
-                                    var soglP = abit.QuerySelectorAll("p")
-                                        .FirstOrDefault(p => p.TextContent.Contains("Есть согласие", StringComparison.OrdinalIgnoreCase));
-                                    if (soglP.TextContent == "Есть согласие: да")
-                                    {
-                                        confirmation = true;
-                                    }
                                     appsList.Add(new Application
                                     {
-                                        applicationId = applicationId,
-                                        points = points,
-                                        priority = priority,
-                                        confirmation = confirmation,
-                                        profile = profile
+                                        AbiturientId = abiturientId,
+                                        PointsFinal = pointsFinal,
+                                        PointsBase = pointsBase,
+                                        Exams = exams,
+                                        IndividualAchievements = individualAchievements,
+                                        Priority = priority,
+                                        Advantage = advantage,
+                                        Confirmation = confirmation,
+                                        Profile = profile
                                     });
-                                }
-                                catch (Exception ex) { }
 
+                                }
+                                catch { }
                             }
                         }
                         catch (Exception ex)
@@ -161,58 +176,61 @@ namespace ITMOParser
                     }
                     else if (group == "Общий конкурс")
                     {
-                        
+                        isBVI = false;
 
-                           var tablediv = heading.NextElementSibling;
-                           var allAbit = tablediv.QuerySelectorAll(".RatingPage_table__item__qMY0F");
-
-
-                           foreach (var abit in allAbit)
-                           {
-                               try
-                               {
-
-                                   int applicationId;
-                                   int points;
-                                   int priority;
-                                   bool confirmation = false;
-                                   string? applicationIdWithNumber = abit.QuerySelector(".RatingPage_table__position__uYWvi")?.TextContent;
+                        var tablediv = heading.NextElementSibling;
+                        var allAbit = tablediv.QuerySelectorAll(".RatingPage_table__item__qMY0F");
 
 
-                                   applicationId = int.Parse(applicationIdWithNumber.Split()[^1][1..]);
+                        foreach (IElement abitCard in allAbit)
+                        {
+                            try
+                            {
+                                IHtmlCollection<IElement> RowsDivs = abitCard.QuerySelectorAll(".RatingPage_table__infoLeft__Y_9cA");
+                                List<int> firstRow;
+                                (int individualAchievements, int pointsBase, int pointsFinal, bool advantage) secondRow;
+                                int abiturientId;
+                                int pointsFinal;
+                                int pointsBase;
+                                List<int> exams;
+                                int individualAchievements;
+                                int priority;
+                                bool confirmation = false;
+                                bool advantage;
+
+                                string? applicationIdWithNumber = abitCard.QuerySelector(".RatingPage_table__position__uYWvi")?.TextContent;
+                                abiturientId = int.Parse(applicationIdWithNumber.Split()[^1][1..]);
+
+                                firstRow = await ParseFirstRow(isBVI, RowsDivs);
+                                priority = firstRow[0];
+                                exams = firstRow.Take(2..).ToList();
 
 
-                                   var priorityAndTypeDiv = abit.QuerySelector(".RatingPage_table__infoLeft__Y_9cA");
-                                   string priorityStr = priorityAndTypeDiv.QuerySelector("p").TextContent;
-                                   priority = int.Parse(priorityStr.Substring(priorityStr.Length - 1));
+                                secondRow = await ParseSecondRow(isBVI, RowsDivs);
+                                individualAchievements = secondRow.individualAchievements;
+                                pointsBase = secondRow.pointsBase;
+                                pointsFinal = secondRow.pointsFinal;
+                                advantage = secondRow.advantage;
+                                confirmation = await ParseConfirmation(abitCard);
 
-
-                                   var pointsP = abit.QuerySelectorAll("p")
-                                       .FirstOrDefault(p => p.TextContent.Contains("Балл ВИ+ИД:", StringComparison.OrdinalIgnoreCase));
-                                   string pointsStr = pointsP.TextContent;
-                                   points = int.Parse(pointsStr.Split()[^1]);
-
-
-                                   var soglP = abit.QuerySelectorAll("p")
-                                       .FirstOrDefault(p => p.TextContent.Contains("Есть согласие", StringComparison.OrdinalIgnoreCase));
-
-                                   if (soglP.TextContent == "Есть согласие: да") { confirmation = true; }
-
-
-                                   appsList.Add(new Application
-                                   {
-                                       applicationId = applicationId,
-                                       points = points,
-                                       priority = priority,
-                                       confirmation = confirmation,
-                                       profile = profile
-                                   });
-
-                               }
-                               catch (Exception ex) { }
+                                appsList.Add(new Application
+                                {
+                                    AbiturientId = abiturientId,
+                                    PointsFinal = pointsFinal,
+                                    PointsBase = pointsBase,
+                                    Exams = exams,
+                                    IndividualAchievements = individualAchievements,
+                                    Priority = priority,
+                                    Advantage = advantage,
+                                    Confirmation = confirmation,
+                                    Profile = profile
+                                });
 
                             }
-                        
+                            catch (Exception ex) { }
+
+                        }
+
 
                     }
 
@@ -237,8 +255,121 @@ namespace ITMOParser
                     await db.SaveChangesAsync();
                 }
                 catch { throw; }
-                
+
             }
+        }
+
+
+        private static async Task<List<int>> ParseFirstRow(bool isBVI, IHtmlCollection<IElement> RowsDivs)
+        {
+            IElement rowDiv = RowsDivs[0];
+            List<int> rowList = new List<int>();
+            IHtmlCollection<IElement> firstRow = rowDiv.QuerySelectorAll("p");
+            if (!isBVI)
+            {
+                for (int i = 0; i < firstRow.Count; i++)
+                {
+
+                    string pQuery = firstRow[i].TextContent;
+                    string[] splittedPQuery = pQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    try
+                    {
+                        rowList.Add(Int32.Parse(splittedPQuery[^1]));
+                    }
+                    catch
+                    {
+
+                    }
+
+                }
+                return rowList;
+            }
+            else
+            {
+                try
+                {
+                    string pQuery = firstRow[0].TextContent;
+                    string[] splittedPQuery = pQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    int priority = Int32.Parse(splittedPQuery[^1]);
+                    rowList.Add(priority);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[{DateTime.Now}] ERROR parsing first row, BVI={isBVI}: {ex.Message}");
+                    throw;
+                }
+                return rowList;
+            }
+        }
+        private static async Task<(int individualAchievements, int pointsBase, int pointsFinal, bool advantage)> ParseSecondRow(bool isBVI, IHtmlCollection<IElement> RowsDivs)
+        {
+            IElement rowDiv = RowsDivs[1];
+            IHtmlCollection<IElement> row = rowDiv.QuerySelectorAll("p");
+
+            (int individualAchievements, int pointsBase, int pointsFinal, bool advantage) rowTuple = (0, 0, 0, false);
+            if (!isBVI)
+            {
+                for (int i = 0; i < row.Count; i++)
+                {
+
+                    string pQuery = row[i].TextContent;
+                    string[] splitedPQuery = pQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    try
+                    {
+                        switch (i)
+                        {
+                            case 0:
+                                rowTuple.individualAchievements = (Int32.Parse(splitedPQuery[^1]));
+                                break;
+                            case 1:
+                                rowTuple.pointsBase = (Int32.Parse(splitedPQuery[^1]));
+                                break;
+                            case 2:
+                                rowTuple.pointsFinal = (Int32.Parse(splitedPQuery[^1]));
+                                break;
+                            case 3:
+                                if (splitedPQuery[^1].ToLower() == "нет")
+                                {
+                                    rowTuple.advantage = false;
+                                }
+                                else if (splitedPQuery[^1].ToLower() == "да")
+                                {
+                                    rowTuple.advantage = true;
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                    catch { throw; }
+
+                }
+
+            }
+            else
+            {
+                try
+                {
+                    string pQuery = row[0].TextContent;
+                    string[] splitedPQuery = pQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    rowTuple.individualAchievements = (Int32.Parse(splitedPQuery[^1]));
+                }
+                catch { throw; }
+            }
+            return rowTuple;
+        }
+        private static async Task<bool> ParseConfirmation(IElement abitCard)
+        {
+            bool confirmation = false;
+            string confirmationP = abitCard.QuerySelectorAll("p")
+                                        .FirstOrDefault(p => p.TextContent.Contains("Есть согласие", StringComparison.OrdinalIgnoreCase))
+                                        .TextContent;
+            string[] confirmationParts = confirmationP.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (confirmationParts[^1].ToLower() == "да")
+            {
+                confirmation = true;
+            }
+            return confirmation;
         }
     }
 }

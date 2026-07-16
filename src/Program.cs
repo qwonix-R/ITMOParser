@@ -11,8 +11,11 @@ namespace ITMOParser
         internal static string? DBConnectionString;
         private static async Task Main(string[] args)
         {
-            // Getting settings from appsettings.json
-            if (!LoadJsonSettings()) { return; }
+            CycleLogic cycleLogic = new CycleLogic();
+
+            // Loading settings from appsettings.json
+
+            if (!LoadJsonSettings(cycleLogic)) { return; }
             
 
             // DB connection fetch
@@ -40,14 +43,14 @@ namespace ITMOParser
             
             // Time between cycles
             using var timer = new PeriodicTimer(TimeSpan.FromMinutes(TimerPeriod));
-
+            
             try
             {
-                await CycleLogic.RunCycle();
+                await cycleLogic.RunCycle();
 
                 while (await timer.WaitForNextTickAsync(cts.Token))
                 {
-                    await CycleLogic.RunCycle();
+                    await cycleLogic.RunCycle();
                 }
             }
 
@@ -66,19 +69,19 @@ namespace ITMOParser
 
 
         }
-        private static bool LoadJsonSettings()
+        private static bool LoadJsonSettings(CycleLogic cycleLogic)
         {
             try
             {
                 string settingsJson = File.ReadAllText("appsettings.json");
                 using var settings = JsonDocument.Parse(settingsJson);
 
-                CycleLogic.PageDict = JsonSerializer.Deserialize<Dictionary<string, string>>
+                cycleLogic.PageDict = JsonSerializer.Deserialize<Dictionary<string, string>>
                     (
                     settings.RootElement.GetProperty("PageDict").GetRawText()
                     );
 
-                CycleLogic.UpdateLowerThreshold = settings.RootElement.GetProperty("UpdateLowerThreshold").GetInt32();
+                cycleLogic.UpdateLowerThreshold = settings.RootElement.GetProperty("UpdateLowerThreshold").GetInt32();
 
                 TimerPeriod = settings.RootElement.GetProperty("TimerPeriod").GetInt32();
 
