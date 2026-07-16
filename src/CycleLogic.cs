@@ -31,8 +31,17 @@ namespace ITMOParser
                     { 
                         try
                         {
-                            allProfiles.AddRange(await ParsePage(page.Key, page.Value));
-                            success = true;
+                            List<Application> profileApps = await ParsePage(page.Key, page.Value);
+                            if (profileApps.Count > 0) 
+                            {
+                                allProfiles.AddRange(profileApps);
+                                success = true;
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[{DateTime.Now}] (TRY {tries}) Fetched 0 applications for profile {page.Key}, retrying..");
+                                tries++;
+                            }
                         }
                         catch (Exception ex) 
                         {
