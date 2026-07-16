@@ -39,7 +39,7 @@ namespace ITMOParser
                             }
                             else
                             {
-                                Console.WriteLine($"[{DateTime.Now}] (TRY {tries}) Fetched 0 applications for profile {page.Key}, retrying..");
+                                Console.WriteLine($"[{DateTime.Now}] (TRY {tries}) Fetched 0 records for profile {page.Key}, retrying..");
                                 tries++;
                             }
                         }
@@ -67,7 +67,7 @@ namespace ITMOParser
                             }
                             else
                             {
-                                Console.WriteLine($"[{DateTime.Now}] Last parsing result had at least {UpdateLowerThreshold} less than in bd ({prevLength}).");
+                                Console.WriteLine($"[{DateTime.Now}] Last parsing result had at least {UpdateLowerThreshold} less records than in bd ({prevLength}).");
                             }
                             success = true;
                         }
@@ -218,7 +218,7 @@ namespace ITMOParser
 
                 }
 
-                Console.WriteLine($"[{DateTime.Now}] List.Count for {profile}: {appsList.Count}");
+                Console.WriteLine($"[{DateTime.Now}] Records fetched for {profile}: {appsList.Count}");
                 return appsList;
             }
             catch (Exception ex)
