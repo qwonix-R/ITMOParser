@@ -76,9 +76,9 @@ namespace ITMOParser
                 string settingsJson = File.ReadAllText("appsettings.json");
                 using var settings = JsonDocument.Parse(settingsJson);
 
-                cycleLogic.PageDict = JsonSerializer.Deserialize<Dictionary<string, string>>
+                cycleLogic.Profiles = JsonSerializer.Deserialize<List<Profile>>
                     (
-                    settings.RootElement.GetProperty("PageDict").GetRawText()
+                    settings.RootElement.GetProperty("Profiles").GetRawText()
                     );
 
                 cycleLogic.UpdateLowerThreshold = settings.RootElement.GetProperty("UpdateLowerThreshold").GetInt32();

@@ -4,6 +4,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ITMOParser
 {
+    public record Profile 
+    { 
+        public string Code {get ; set;} 
+        public string Url {get; set;}
+        public int Places {get; set;}
+    }
     internal class CycleLogic
     {
         internal readonly IConfiguration config;
@@ -15,7 +21,7 @@ namespace ITMOParser
         }
 
 
-        public Dictionary<string, string> PageDict = new Dictionary<string, string> { };
+        public List<Profile> Profiles = new List<Profile>();
 
         // if actual parsing results have less elements by this number than in bd, it doesn't update
         internal int UpdateLowerThreshold = 250;
@@ -24,11 +30,15 @@ namespace ITMOParser
         internal async Task RunCycle()
         {
             Console.WriteLine($"[{DateTime.Now}] RunCycle started.");
-            List<Application> allProfiles = new List<Application>();
+
+
+            
+            List<Application> allApplications = new List<Application>();
             try
             {
+                #region Parsing stage
                 int prevLength = 0;
-                foreach (var page in PageDict)
+                foreach (Profile profile in Profiles)
                 {
                     int tries = 1;
                     bool success = false;
@@ -36,27 +46,32 @@ namespace ITMOParser
                     {
                         try
                         {
-                            List<Application> profileApps = await ParsePage(page.Key, page.Value);
-                            if (profileApps.Count > 0)
+                            
+                            List<Application> profileApplications = await ParsePage(profile.Code, profile.Url);
+                            if (profileApplications.Count > 0)
                             {
-                                allProfiles.AddRange(profileApps);
+                                allApplications.AddRange(profileApplications);
                                 success = true;
                             }
                             else
                             {
-                                Console.WriteLine($"[{DateTime.Now}] (TRY {tries}) Fetched 0 records for profile {page.Key}, retrying..");
+                                Console.WriteLine($"[{DateTime.Now}] (TRY {tries}) Fetched 0 records for profile {profile.Code}, retrying..");
                                 tries++;
                             }
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"[{DateTime.Now}] (TRY {tries}) Did not fetch parsed data for profile {page.Key}: {ex.Message}");
+                            Console.WriteLine($"[{DateTime.Now}] (TRY {tries}) Did not fetch parsed data for profile {profile.Code}: {ex.Message}");
                             tries++;
                             Thread.Sleep(2000);
                         }
                     }
                 }
+                #endregion
 
+
+
+                #region Saving stage
                 using (ApplicationContext db = new ApplicationContext())
                 {
                     int tries = 1;
@@ -66,10 +81,10 @@ namespace ITMOParser
                     {
                         try
                         {
-                            if (prevLength - allProfiles.Count < UpdateLowerThreshold && allProfiles != null)
+                            if (prevLength - allApplications.Count < UpdateLowerThreshold && allApplications != null)
                             {
                                 db.Database.ExecuteSqlRaw($"TRUNCATE TABLE itmo RESTART IDENTITY");
-                                await UpdateDb(allProfiles);
+                                await UpdateDb(allApplications);
                             }
                             else
                             {
@@ -85,6 +100,7 @@ namespace ITMOParser
                         }
                     }
                 }
+                #endregion
 
                 Console.WriteLine($"[{DateTime.Now}] RunCycle ended successfully.");
             }
